@@ -13,6 +13,7 @@ CONTEXT = ("You are going to pretend to be a Twitter user called AI Warcraft. AI
 test_mode = os.environ.get("TEST_MODE", "False").lower() == "true"
 
 # Twitter API credentials
+bearer_token = os.environ["TWITTER_BEARER_TOKEN"]
 consumer_key = os.environ["TWITTER_CONSUMER_KEY"]
 consumer_secret = os.environ["TWITTER_CONSUMER_SECRET"]
 access_token = os.environ["TWITTER_ACCESS_TOKEN"]
@@ -22,24 +23,29 @@ access_token_secret = os.environ["TWITTER_ACCESS_TOKEN_SECRET"]
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
 # Set up Tweepy with Twitter credentials
-auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
-auth.set_access_token(access_token, access_token_secret)
-api = tweepy.API(auth)
+client = tweepy.Client(bearer_token, consumer_key, consumer_secret, access_token, access_token_secret)
+
+# auth = tweepy.OAuthHandler(consumer_key, consumer_secret)
+# auth.set_access_token(access_token, access_token_secret)
+# api = tweepy.API(auth)
 
 # Add a global variable to store the last retweeted tweet ID
 last_retweeted_tweet_id = None
 
 def get_latest_wowhead_tweet():
-    tweets = api.user_timeline(screen_name="Wowhead", count=1)
-    if len(tweets) > 0:
-        return tweets[0].id, f"@Wowhead: {tweets[0].text}"
+    recent_tweets = client.get_users_tweets("17258481", exclude="retweets")[0] # Uses Wowhead user ID
+    if len(recent_tweets[0]) > 0:
+        for i in range(10):
+            tweet = recent_tweets[i]
+            if "#warcraft" in tweet.text.lower():
+                return tweet.id, tweet.text
     return None, None
 
 def post_quote_retweet():
     global last_retweeted_tweet_id  # Don't forget to add this line
 
     tweet_id, prompt = get_latest_wowhead_tweet()
-    if tweet_id and tweet_id != last_retweeted_tweet_id::
+    if tweet_id and tweet_id != last_retweeted_tweet_id:
         ai_warcraft_tweet = generate_ai_warcraft_tweet(prompt)
 
         # Attempt to generate a new tweet if the initial one is too long
@@ -48,14 +54,15 @@ def post_quote_retweet():
             ai_warcraft_tweet = generate_ai_warcraft_tweet(prompt)
             retries -= 1
 
+        print(f"Latest @Wowhead tweet: {prompt}")
         if len(ai_warcraft_tweet) <= 280:
             if test_mode:
                 print(f"Test mode: Generated tweet for @Wowhead: {ai_warcraft_tweet}")
             else:
                 try:
-                    api.update_status(ai_warcraft_tweet, in_reply_to_status_id=tweet_id, auto_populate_reply_metadata=True)
+                    client.create_tweet(text=ai_warcraft_tweet, quote_tweet_id=tweet_id)
                     print(f"Quote retweeted @Wowhead: {ai_warcraft_tweet}")
-                except tweepy.TweepError as e:
+                except tweepy.errors.TweepyException as e:
                     print(f"Error while posting tweet: {e}")
 
         else:
@@ -78,7 +85,7 @@ def generate_ai_warcraft_tweet(prompt):
         {"role": "assistant", "content": "A Holy Hand Grenade? What's next, a Holy Rocket Launcher?! This is getting ridiculous. And don't even get me started on the Time Travel option... Blizzard, what are you smoking? 🙄 #Warcraft"},
         {"role": "user", "content": "@Wowhead: Blizzard has reached out to us at Wowhead and clarified that the first Spark of Shadowflame will actually be available the first week of Patch 10.1!"},
         {"role": "assistant", "content": "Oh great, just what we need - more Shadowflame. Can't Blizzard come up with anything original? Yawn. #Warcraft"},
-        {"role": "user", "content": f"{prompt}"}
+        {"role": "user", "content": f"@Wowhead: {prompt}"}
     ]
 
     response = openai.ChatCompletion.create(
@@ -90,7 +97,7 @@ def generate_ai_warcraft_tweet(prompt):
         temperature=0.7,
     )
 
-    return response.choices[0].text.strip()
+    return response.choices[0]["message"]["content"].strip()
 
 def write_last_retweeted_tweet_id(filename, tweet_id):
     with open(filename, 'w') as file:
@@ -112,7 +119,7 @@ def main():
     while True:
         # schedule.run_pending()
         post_quote_retweet()
-        time.sleep(60)  # Sleep for 1 minute
+        time.sleep(120)  # Sleep for 2 minutes
 
 if __name__ == "__main__":
     last_retweeted_tweet_id = read_last_retweeted_tweet_id('last_retweeted_tweet_id.txt')
