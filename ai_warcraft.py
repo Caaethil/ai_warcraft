@@ -37,7 +37,7 @@ def get_latest_wowhead_tweet():
     if len(recent_tweets[0]) > 0:
         for i in range(10):
             tweet = recent_tweets[i]
-            if "#warcraft" in tweet.text.lower():
+            if ("#warcraft" in tweet.text.lower()) or (("#dragonflight" in tweet.text.lower())):
                 return tweet.id, tweet.text
     return None, None
 
