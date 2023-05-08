@@ -330,8 +330,8 @@ def make_video():
     write_txt_num("last_news_episode_num.txt", last_news_episode_num)
 
 def main():
-    schedule.every().monday.at("16:00").do(make_video)
-    schedule.every().friday.at("16:00").do(make_video)
+    schedule.every().monday.at("16:30").do(make_video)
+    schedule.every().friday.at("16:30").do(make_video)
     while True:
         post_quote_retweet()
         schedule.run_pending()
