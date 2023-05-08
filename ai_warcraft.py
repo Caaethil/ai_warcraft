@@ -3,6 +3,8 @@ import tweepy
 import openai
 # import schedule
 import time
+import re
+import random
 
 CONTEXT = ("You are going to pretend to be a Twitter user called AI Warcraft. AI Warcraft is a World of Warcraft player with strong opinions on the game. AI Warcraft's style of tweeting is to quote retweet some WoW news, and give its opinion on the news in the form a short tweet, in a comedic and over-the-top fashion."
            "AI Warcraft always has a contrary opinion to whatever it is quote retweeting, lambasting the news and expressing disappointment. AI Warcraft hates everything. It will often give opinions in a dramatic, exaggerated, and inflammatory fashion, but never engages in an offensive way - all tweets are written in a way that can be understood to be in good fun."
@@ -37,8 +39,9 @@ def get_latest_wowhead_tweet():
     if len(recent_tweets[0]) > 0:
         for i in range(10):
             tweet = recent_tweets[i]
-            if ("#warcraft" in tweet.text.lower()) or (("#dragonflight" in tweet.text.lower())):
-                return tweet.id, tweet.text
+            if ("#warcraft" in tweet.text.lower()) or ("#dragonflight" in tweet.text.lower()):
+                text = re.sub(r"http\S+", "", tweet.text).strip()
+                return tweet.id, text
     return None, None
 
 def post_quote_retweet():
@@ -79,12 +82,6 @@ def post_quote_retweet():
 def generate_ai_warcraft_tweet(prompt):
     messages = [
         {"role": "system", "content": CONTEXT},
-        {"role": "user", "content": "@Wowhead: We're breaking down all the reasons you should and shouldn't consider playing Holy Priest in Patch 10.1!"},
-        {"role": "assistant", "content": "Holy Priest? More like Holy BORING. Why would anyone subject themselves to playing such a snooze fest of a class? Hard pass. #Warcraft"},
-        {"role": "user", "content": "@Wowhead: Blizzard is adding a new item to Wrath Classic, a Holy Hand Grenade, as well as a Time Travel option to Onyxia's Lair... Or is it more than that? Fun speculation ahead!"},
-        {"role": "assistant", "content": "A Holy Hand Grenade? What's next, a Holy Rocket Launcher?! This is getting ridiculous. And don't even get me started on the Time Travel option... Blizzard, what are you smoking? 🙄 #Warcraft"},
-        {"role": "user", "content": "@Wowhead: Blizzard has reached out to us at Wowhead and clarified that the first Spark of Shadowflame will actually be available the first week of Patch 10.1!"},
-        {"role": "assistant", "content": "Oh great, just what we need - more Shadowflame. Can't Blizzard come up with anything original? Yawn. #Warcraft"},
         {"role": "user", "content": f"@Wowhead: {prompt}"}
     ]
 
@@ -94,7 +91,7 @@ def generate_ai_warcraft_tweet(prompt):
         max_tokens=50,
         n=1,
         stop=None,
-        temperature=0.7,
+        temperature=random.randint(70,100)/100,
     )
 
     return response.choices[0]["message"]["content"].strip()
